@@ -1,0 +1,39 @@
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+dist/
+build/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# BRL-CAD specific outputs
+*.g
+*.ppm
+*.png
+*.pix
+*.log
+myview.sh
+myview_v2.sh
+render_view.v
