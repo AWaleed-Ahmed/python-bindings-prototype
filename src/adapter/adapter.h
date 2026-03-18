@@ -15,6 +15,8 @@ int brlcad_list_objects(void* wdb_handle, char ***names, char ***types, int *cou
 
 // Primitive management adapter
 int brlcad_create_sphere(void* wdb_handle, const char* name, double radius);
+int brlcad_create_box(void* wdb_handle, const char* name, double x, double y, double z);
+int brlcad_create_cylinder(void* wdb_handle, const char* name, double radius, double height);
 int brlcad_get_sphere(void* wdb_handle, const char* name, double *radius, double *center);
 
 // Advanced Primitive management adapter

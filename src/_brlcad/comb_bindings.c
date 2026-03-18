@@ -25,12 +25,14 @@ PyObject* py_brlcad_create_combination(PyObject *self, PyObject *args) {
     return create_capsule(comb, "brlcad.comb", comb_capsule_destructor);
 }
 
-/* Python: comb_add_member(comb_capsule, db_capsule, member_name, mat_capsule) */
+/* Python: comb_add_member(comb_capsule, db_capsule, member_name, op_str, mat_capsule) */
 PyObject* py_brlcad_comb_add_member(PyObject *self, PyObject *args) {
     PyObject *comb_capsule, *db_capsule, *mat_capsule = Py_None;
     const char *member_name;
+    const char *op_str = "u";
     
-    if (!PyArg_ParseTuple(args, "OOs|O", &comb_capsule, &db_capsule, &member_name, &mat_capsule)) return NULL;
+    // Explicitly allow 5 arguments
+    if (!PyArg_ParseTuple(args, "OOs|sO", &comb_capsule, &db_capsule, &member_name, &op_str, &mat_capsule)) return NULL;
 
     void *comb = get_capsule_pointer(comb_capsule, "brlcad.comb");
     void *db = get_capsule_pointer(db_capsule, "brlcad.db");
@@ -42,8 +44,8 @@ PyObject* py_brlcad_comb_add_member(PyObject *self, PyObject *args) {
 
     if (!comb || !db) return NULL;
 
-    // Use union operation ('u')
-    int result = brlcad_comb_add_member(comb, db, member_name, 'u', mat);
+    char op = op_str[0];
+    int result = brlcad_comb_add_member(comb, db, member_name, op, mat);
     return PyLong_FromLong(result);
 }
 

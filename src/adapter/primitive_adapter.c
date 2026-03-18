@@ -26,6 +26,26 @@ int brlcad_create_sphere(void* wdb_handle, const char* name, double radius) {
     return 1;
 }
 
+int brlcad_create_box(void* wdb_handle, const char* name, double x, double y, double z) {
+    if (!wdb_handle) return 0;
+    struct rt_wdb *wdb = (struct rt_wdb*)wdb_handle;
+    point_t min = {-x/2.0, -y/2.0, -z/2.0};
+    point_t max = {x/2.0, y/2.0, z/2.0};
+    printf("[adapter] Creating box %s dimensions %.2fx%.2fx%.2f\n", name, x, y, z);
+    if (mk_rpp(wdb, name, min, max) < 0) return -1;
+    return 1;
+}
+
+int brlcad_create_cylinder(void* wdb_handle, const char* name, double radius, double height) {
+    if (!wdb_handle) return 0;
+    struct rt_wdb *wdb = (struct rt_wdb*)wdb_handle;
+    point_t base = {0, 0, -height/2.0};
+    point_t top = {0, 0, height/2.0};
+    printf("[adapter] Creating cylinder %s radius %.2f, height %.2f\n", name, radius, height);
+    if (mk_rcc(wdb, name, base, top, radius) < 0) return -1;
+    return 1;
+}
+
 int brlcad_get_sphere(void* wdb_handle, const char* name, double *radius, double *center) {
     if (!wdb_handle) return -1;
     struct rt_wdb *wdb = (struct rt_wdb*)wdb_handle;

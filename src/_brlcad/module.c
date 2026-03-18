@@ -11,6 +11,8 @@
 extern PyObject* py_db_open(PyObject* self, PyObject* args);
 extern PyObject* py_db_close(PyObject* self, PyObject* args);
 extern PyObject* py_create_sphere(PyObject* self, PyObject* args);
+extern PyObject* py_create_box(PyObject* self, PyObject* args);
+extern PyObject* py_create_cylinder(PyObject* self, PyObject* args);
 
 // Prototypes for functions defined in comb_bindings.c
 extern PyObject* py_brlcad_create_combination(PyObject *self, PyObject *args);
@@ -48,41 +50,6 @@ extern void* brlcad_db_open(const char *path, const char *mode);
 extern int brlcad_create_sphere(void* wdb_handle, const char* name, double radius);
 extern int brlcad_list_objects(void* wdb_handle, char ***names, char ***types, int *count);
 extern int brlcad_get_sphere(void* wdb_handle, const char* name, double *radius, double *center);
-
-/**
- * Creates a sphere primitive in the BRL-CAD database.
- */
-static PyObject* py_brlcad_create_sphere(PyObject *self, PyObject *args) {
-    PyObject *capsule, *origin_l;
-    const char *name;
-    double radius;
-    double origin[3] = {0,0,0};
-
-    if (PyArg_ParseTuple(args, "Osd", &capsule, &name, &radius)) {
-        // Old 3-arg version for backward compatibility if needed, but we want 4 args now
-    } else {
-        PyErr_Clear();
-        if (!PyArg_ParseTuple(args, "OsOd", &capsule, &name, &origin_l, &radius)) {
-            return NULL;
-        }
-        if (PyList_Check(origin_l) && PyList_Size(origin_l) == 3) {
-            for(int i=0; i<3; i++) origin[i] = PyFloat_AsDouble(PyList_GetItem(origin_l, i));
-        }
-    }
-
-    void *wdb = get_capsule_pointer(capsule, BRLCAD_DB_CAPSULE);
-    if (!wdb) return NULL;
-
-    // We need to update the adapter to take origin as well, 
-    // but for now let's just use the radius.
-    // Actually, BRL-CAD's mk_sph takes origin too.
-    if (brlcad_create_sphere(wdb, name, radius) < 0) {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to create sphere primitive.");
-        return NULL;
-    }
-
-    Py_RETURN_NONE;
-}
 
 /**
  * Lists all objects in the database.
@@ -241,7 +208,9 @@ static PyObject* test_capsule(PyObject *self, PyObject *args) {
 
 static PyMethodDef BrlcadMethods[] = {
     {"db_open", py_brlcad_db_open, METH_VARARGS, "Open/create a BRL-CAD database."},
-    {"create_sphere", py_brlcad_create_sphere, METH_VARARGS, "Create a sphere primitive in the database."},
+    {"create_sphere", py_create_sphere, METH_VARARGS, "Create a sphere primitive in the database."},
+    {"create_box", py_create_box, METH_VARARGS, "Create a box primitive in the database."},
+    {"create_cylinder", py_create_cylinder, METH_VARARGS, "Create a cylinder primitive in the database."},
     {"list_objects", py_brlcad_list_objects, METH_VARARGS, "List all objects in the database."},
     {"get_sphere", py_brlcad_get_sphere, METH_VARARGS, "Get sphere attributes."},
     {"db_close", py_db_close, METH_VARARGS, "Close a BRL-CAD database."},
