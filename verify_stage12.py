@@ -52,3 +52,18 @@ def verify_stage12():
 
 if __name__ == "__main__":
     verify_stage12()
+    
+    
+    
+    
+    
+from brlcad import Sphere
+
+# Create two spheres with transformations, color, and shader
+s1 = Sphere(2).translate(0, 0, 5).color(255, 0, 0).shader("metallic")
+s2 = Sphere(1).translate(3, 0, 0).color(0, 255, 0).shader("plastic")
+
+# Combine spheres (CSG Union) and demonstrate in-place updates
+s1.set_color(255, 255, 0).set_shader("metallic")
+s2.set_color(255, 0, 255)
+scene = s1 + s2

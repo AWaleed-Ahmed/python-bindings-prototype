@@ -37,3 +37,7 @@ MANIFEST
 myview.sh
 myview_v2.sh
 render_view.v
+
+# GSoC Proposal documents (local drafts)
+GSoC_Proposal_Sections_5-13_Updated.md
+GSoC_Proposal_Mermaid_Diagrams.md

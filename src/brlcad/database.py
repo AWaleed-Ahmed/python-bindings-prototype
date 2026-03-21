@@ -23,6 +23,30 @@ class Database:
         _brlcad.create_cylinder(self._db_capsule, name, float(r), float(h))
         return name
 
+    def create_tgc(self, name, base, height, a, b, c, d):
+        _brlcad.create_tgc(
+            self._db_capsule,
+            name,
+            list(base),
+            list(height),
+            list(a),
+            list(b),
+            list(c),
+            list(d),
+        )
+        return name
+
+    def create_ell(self, name, center, a, b, c):
+        _brlcad.create_ell(
+            self._db_capsule,
+            name,
+            list(center),
+            list(a),
+            list(b),
+            list(c),
+        )
+        return name
+
     def set_color(self, name, r, g, b):
         _brlcad.set_color(self._db_capsule, name, int(r), int(g), int(b))
 
