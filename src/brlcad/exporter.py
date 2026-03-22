@@ -2,6 +2,25 @@ import _brlcad
 from .high_level_api import Shape, Sphere, Box, Cylinder, ELL, TGC, CSGNode
 from .database import Database
 
+try:
+    from .moose import (
+        MooseNode,
+        MooseSphere,
+        MooseBox,
+        MooseCylinder,
+        MooseELL,
+        MooseTGC,
+        MooseCSG,
+    )
+except Exception:
+    MooseNode = None
+    MooseSphere = None
+    MooseBox = None
+    MooseCylinder = None
+    MooseELL = None
+    MooseTGC = None
+    MooseCSG = None
+
 class BRLCADExporter:
     """
     Translates high-level Python geometry into BRL-CAD objects.
@@ -125,6 +144,143 @@ class BRLCADExporter:
         self._apply_attributes(name, node, db)
         return name
 
+    def _is_moose_native_node(self, node) -> bool:
+        if MooseNode is not None and isinstance(node, MooseNode):
+            return True
+
+        # Duck-typed fallback in case callers build compatible node types.
+        return hasattr(node, "transforms") and (
+            hasattr(node, "operation") or hasattr(node, "radius") or hasattr(node, "x")
+            or hasattr(node, "r") or hasattr(node, "center") or hasattr(node, "base")
+        )
+
+    def _export_moose_native_node(self, node, db, as_member=False) -> str:
+        if node.name:
+            name = node.name
+        else:
+            if (MooseCSG is not None and isinstance(node, MooseCSG)) or (
+                hasattr(node, "operation") and hasattr(node, "left") and hasattr(node, "right")
+            ):
+                name = self._get_unique_name('comb')
+            elif (MooseSphere is not None and isinstance(node, MooseSphere)) or hasattr(node, "radius"):
+                name = self._get_unique_name('sph')
+            elif (MooseBox is not None and isinstance(node, MooseBox)) or (
+                hasattr(node, "x") and hasattr(node, "y") and hasattr(node, "z")
+            ):
+                name = self._get_unique_name('box')
+            elif (MooseCylinder is not None and isinstance(node, MooseCylinder)) or (
+                hasattr(node, "r") and hasattr(node, "h")
+            ):
+                name = self._get_unique_name('cyl')
+            elif (MooseELL is not None and isinstance(node, MooseELL)) or (
+                hasattr(node, "center")
+                and hasattr(node, "a")
+                and hasattr(node, "b")
+                and hasattr(node, "c")
+                and not hasattr(node, "d")
+            ):
+                name = self._get_unique_name('ell')
+            elif (MooseTGC is not None and isinstance(node, MooseTGC)) or (
+                hasattr(node, "base")
+                and hasattr(node, "height")
+                and hasattr(node, "a")
+                and hasattr(node, "b")
+                and hasattr(node, "c")
+                and hasattr(node, "d")
+            ):
+                name = self._get_unique_name('tgc')
+            else:
+                name = "obj"
+            node.name = name
+
+        objs = db.list_objects()
+        exists = name in objs
+
+        if (MooseCSG is not None and isinstance(node, MooseCSG)) or (
+            hasattr(node, "operation") and hasattr(node, "left") and hasattr(node, "right")
+        ):
+            left_name = self._export_moose_native_node(node.left, db, as_member=True)
+            right_name = self._export_moose_native_node(node.right, db, as_member=True)
+            op_map = {'union': 'u', 'subtract': '-', 'intersect': '+'}
+            op = op_map.get(node.operation, 'u')
+
+            geom_name = name
+            needs_top_wrapper = bool(node.transforms) and self._use_combination_matrices(node) and not as_member
+            if needs_top_wrapper:
+                geom_name = f"{name}__geom"
+
+            comb_capsule = _brlcad.create_combination(geom_name)
+            _brlcad.comb_add_member(
+                comb_capsule,
+                db._db_capsule,
+                left_name,
+                'u',
+                self._member_matrix(node.left),
+            )
+            _brlcad.comb_add_member(
+                comb_capsule,
+                db._db_capsule,
+                right_name,
+                op,
+                self._member_matrix(node.right),
+            )
+            _brlcad.write_combination(db._db_capsule, geom_name, comb_capsule)
+
+            if needs_top_wrapper:
+                self._write_matrix_wrapper(name, geom_name, node, db)
+
+        elif (MooseSphere is not None and isinstance(node, MooseSphere)) or hasattr(node, "radius"):
+            if self._requires_explicit_primitive_transform(node, as_member):
+                self._write_transformed_primitive_wrapper(name, node, db)
+            elif not exists:
+                db.create_sphere(name, node.radius)
+
+        elif (MooseBox is not None and isinstance(node, MooseBox)) or (
+            hasattr(node, "x") and hasattr(node, "y") and hasattr(node, "z")
+        ):
+            if self._requires_explicit_primitive_transform(node, as_member):
+                self._write_transformed_primitive_wrapper(name, node, db)
+            elif not exists:
+                db.create_box(name, node.x, node.y, node.z)
+
+        elif (MooseCylinder is not None and isinstance(node, MooseCylinder)) or (
+            hasattr(node, "r") and hasattr(node, "h")
+        ):
+            if self._requires_explicit_primitive_transform(node, as_member):
+                self._write_transformed_primitive_wrapper(name, node, db)
+            elif not exists:
+                db.create_cylinder(name, node.r, node.h)
+
+        elif (MooseELL is not None and isinstance(node, MooseELL)) or (
+            hasattr(node, "center")
+            and hasattr(node, "a")
+            and hasattr(node, "b")
+            and hasattr(node, "c")
+            and not hasattr(node, "d")
+        ):
+            if self._requires_explicit_primitive_transform(node, as_member):
+                self._write_transformed_primitive_wrapper(name, node, db)
+            elif not exists:
+                db.create_ell(name, node.center, node.a, node.b, node.c)
+
+        elif (MooseTGC is not None and isinstance(node, MooseTGC)) or (
+            hasattr(node, "base")
+            and hasattr(node, "height")
+            and hasattr(node, "a")
+            and hasattr(node, "b")
+            and hasattr(node, "c")
+            and hasattr(node, "d")
+        ):
+            if self._requires_explicit_primitive_transform(node, as_member):
+                self._write_transformed_primitive_wrapper(name, node, db)
+            elif not exists:
+                db.create_tgc(name, node.base, node.height, node.a, node.b, node.c, node.d)
+        else:
+            raise TypeError("Unsupported MOOSE node in native export path")
+
+        self._apply_attributes(name, node, db)
+        return name
+
     def _use_combination_matrices(self, node) -> bool:
         return getattr(node, "transform_target", "combination_matrix") != "primitive_explicit"
 
@@ -188,6 +344,29 @@ class BRLCADExporter:
         elif isinstance(node, ELL):
             db.create_ell(base_name, node.center, node.a, node.b, node.c)
         elif isinstance(node, TGC):
+            db.create_tgc(base_name, node.base, node.height, node.a, node.b, node.c, node.d)
+        elif hasattr(node, "radius"):
+            db.create_sphere(base_name, node.radius)
+        elif hasattr(node, "x") and hasattr(node, "y") and hasattr(node, "z"):
+            db.create_box(base_name, node.x, node.y, node.z)
+        elif hasattr(node, "r") and hasattr(node, "h"):
+            db.create_cylinder(base_name, node.r, node.h)
+        elif (
+            hasattr(node, "center")
+            and hasattr(node, "a")
+            and hasattr(node, "b")
+            and hasattr(node, "c")
+            and not hasattr(node, "d")
+        ):
+            db.create_ell(base_name, node.center, node.a, node.b, node.c)
+        elif (
+            hasattr(node, "base")
+            and hasattr(node, "height")
+            and hasattr(node, "a")
+            and hasattr(node, "b")
+            and hasattr(node, "c")
+            and hasattr(node, "d")
+        ):
             db.create_tgc(base_name, node.base, node.height, node.a, node.b, node.c, node.d)
         else:
             return name
@@ -278,6 +457,18 @@ class BRLCADExporter:
 
         Contract for custom nodes: implement to_brlcad() -> Shape.
         """
+        if db is None:
+            if self.filename is None:
+                raise ValueError("Database or filename must be provided.")
+            with Database(self.filename) as new_db:
+                if self._is_moose_native_node(moose_node):
+                    return self._export_moose_native_node(moose_node, new_db, as_member=False)
+                return self.export(self._convert_moose_node(moose_node), db=new_db)
+
+        if self._is_moose_native_node(moose_node):
+            return self._export_moose_native_node(moose_node, db, as_member=False)
+
+        # Legacy bridge path retained for compatibility.
         return self.export(self._convert_moose_node(moose_node), db=db)
 
     def _apply_attributes(self, name: str, node, db):
