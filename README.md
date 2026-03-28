@@ -23,6 +23,35 @@ A prototype Python binding for the BRL-CAD CAD kernel.
 - Python 3.8+
 - BRL-CAD installed with development headers.
 
+## Clone and Setup
+
+This repository uses a Git submodule for MOOSE at `third_party/MOOSE`.
+
+For a fresh clone:
+
+```bash
+git clone --recurse-submodules <repo-url>
+cd prottest1
+```
+
+If you already cloned without submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+If the submodule is updated in the main repository later, sync and pull it with:
+
+```bash
+git submodule update --init --recursive --remote
+```
+
+Then build the bridge:
+
+```bash
+bash ./build_moose_bridge.sh
+```
+
 ## Transform Policy
 
 - Primary transform mechanism: combination matrices.
