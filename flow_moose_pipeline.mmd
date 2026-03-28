@@ -1,0 +1,13 @@
+flowchart TD
+    A["User Code (MOOSE API)"]
+    B["MOOSE Object Graph<br/>(primitives, CSG, transforms, attributes)"]
+    C["MOOSE Exporter<br/>(combination-member matrix transform policy)"]
+    D["Database Facade"]
+    E["_brlcad<br/>(CPython extension + capsule safety)"]
+    F["Adapter<br/>(BRL-CAD C API bridge)"]
+    G["BRL-CAD Backend<br/>(.g persistence)"]
+
+    A --> B --> C --> D --> E --> F --> G
+
+    classDef dark fill:#000,color:#fff,stroke:#fff,stroke-width:1.2px;
+    class A,B,C,D,E,F,G dark;

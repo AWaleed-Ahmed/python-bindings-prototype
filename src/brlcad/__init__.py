@@ -16,6 +16,8 @@ from .moose import (
 # Legacy API retained for compatibility, but no longer the primary modeling path.
 from .high_level_api import Shape, CSGNode, Box, Cylinder, Sphere, ELL, TGC
 from .exporter import BRLCADExporter
+from .moose_rt3_backend import MooseRt3Database, MooseBackendError, MooseBridgeUnavailableError
+from .backend import open_database, BACKEND_NATIVE, BACKEND_MOOSE_RT3
 
 __all__ = [
 	"Database",
@@ -36,4 +38,10 @@ __all__ = [
 	"Box",
 	"Cylinder",
 	"BRLCADExporter",
+	"MooseRt3Database",
+	"MooseBackendError",
+	"MooseBridgeUnavailableError",
+	"open_database",
+	"BACKEND_NATIVE",
+	"BACKEND_MOOSE_RT3",
 ]
