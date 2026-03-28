@@ -4,24 +4,30 @@ A prototype Python binding for the BRL-CAD CAD kernel.
 
 ## Architecture
 
-- **Python API**: High-level, Pythonic interface.
-- **CPython C Extension (`_brlcad`)**: Bridge between Python and C.
-- **PyCapsule**: Manages native pointers (librt, libwdb) safely.
-- **Adapter Layer**: Thin C layer to simplify interaction with BRL-CAD libraries.
-- **BRL-CAD Libraries**: The underlying CAD kernel (librt, libwdb, etc.).
+- **Python package (`brlcad`)**: User-facing API.
+- **Backend selector (`open_database`)**: Defaults to `moose_rt3`.
+- **ctypes binding (`src/brlcad/moose_rt3_backend.py`)**: Loads C bridge ABI and marshals arguments.
+- **C bridge (`src/moose_bridge/moose_c_api.*`)**: Thin C ABI over MOOSE C++ classes.
+- **MOOSE C++ API**: Authoritative geometry/database behavior.
+- **BRL-CAD database**: Persistent `.g` output for file-backed sessions.
+
+Legacy `_brlcad` path remains in the repository for compatibility, but the current workflow is the MOOSE bridge path.
 
 ## Project Structure
 
 - `src/brlcad/`: Python package.
-- `src/_brlcad/`: C extension source.
-- `src/adapter/`: C adapter layer.
+- `src/moose_bridge/`: C bridge layer for MOOSE (`moose_c_api.h/.cpp`).
+- `third_party/MOOSE/`: MOOSE source submodule.
+- `build_moose_bridge.sh`: Build script for MOOSE and bridge library.
 - `examples/`: Usage examples.
 - `tests/`: Unit tests.
 
 ## Requirements
 
 - Python 3.8+
-- BRL-CAD installed with development headers.
+- CMake and a C/C++ toolchain.
+- Git submodule support (for `third_party/MOOSE`).
+- Linux environment with system zlib available.
 
 ## Clone and Setup
 
@@ -54,31 +60,63 @@ bash ./build_moose_bridge.sh
 
 ## Transform Policy
 
-- Primary transform mechanism: combination matrices.
-- Primitive transforms: supported as advanced/explicit operations.
+- Primary mechanism: combination-member matrices.
+- Matrices are represented as 16-value arrays (conceptually 4x4, row-major).
+- Primitive definitions remain canonical and reusable; placement is stored on members.
 
-In the high-level API, transforms are recorded on shapes and exported by default
-as combination member matrices.
-
-Use explicit primitive mode only when you want isolated transformed primitive
-wrappers:
+Example matrix helpers used in smoke tests:
 
 ```python
-from brlcad.high_level_api import Sphere
+def _identity_matrix16():
+	return [
+		1.0, 0.0, 0.0, 0.0,
+		0.0, 1.0, 0.0, 0.0,
+		0.0, 0.0, 1.0, 0.0,
+		0.0, 0.0, 0.0, 1.0,
+	]
 
-s_default = Sphere(10).translate(10, 0, 0)  # combination matrix path (default)
-s_explicit = Sphere(10).translate(10, 0, 0).primitive_transforms()  # advanced mode
+
+def _translate_matrix16(tx, ty, tz):
+	m = _identity_matrix16()
+	m[3] = float(tx)
+	m[7] = float(ty)
+	m[11] = float(tz)
+	return m
 ```
 
-## MOOSE Bridge (Experimental)
+## Current Backend Path (moose_rt3)
 
-`BRLCADExporter` now includes `export_moose(...)`.
+Open a database with the current bridge-backed workflow:
 
-Supported integration patterns:
+```python
+from brlcad import BACKEND_MOOSE_RT3, open_database
 
-- Preferred: pass objects implementing `to_brlcad()` returning a
-	`brlcad.high_level_api.Shape`.
-- Fallback: duck-typed nodes with attributes like `radius`, `(x, y, z)`,
-	`(r, h)`, or CSG-style `operation/left/right`.
+with open_database("scene.g", mode="w", backend=BACKEND_MOOSE_RT3) as db:
+	db.create_sphere("sph", 12.5)
+	db.write_combination(
+		"combo",
+		[
+			{"name": "sph", "op": "u", "matrix": _identity_matrix16()},
+		],
+	)
+```
 
-See `examples/moose_bridge_demo.py` for a quick test flow.
+Session modes currently supported by the bridge:
+
+- `r`: read-only file mode (rejects writes)
+- `w`: writable file mode (persists to `.g`)
+- `memory`: writable in-memory mode (non-persistent)
+
+## Smoke Test
+
+Run the end-to-end smoke test:
+
+```bash
+python examples/test_moose_rt3_smoke.py
+```
+
+It validates:
+
+- primitive creation
+- combination-member matrix writes
+- persistence and reopen behavior
